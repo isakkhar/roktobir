@@ -1,0 +1,498 @@
+{
+  "entities": {
+    "DonorProfile": {
+      "title": "DonorProfile",
+      "description": "Public donor profile in the 0709 Sanatan Blood Bank directory with real-time location and eligibility.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "bloodGroup": {
+          "type": "string",
+          "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+        },
+        "district": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "area": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "isAvailable": {
+          "type": "boolean"
+        },
+        "lastDonationMs": {
+          "type": "number"
+        },
+        "lastDonationDate": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "totalDonations": {
+          "type": "number"
+        },
+        "hidePhone": {
+          "type": "boolean"
+        },
+        "publicContactPhone": {
+          "type": "string",
+          "maxLength": 15
+        },
+        "eligibilityDeclared": {
+          "type": "boolean"
+        },
+        "fcmTopic": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 30
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "name",
+        "bloodGroup",
+        "district",
+        "area",
+        "lat",
+        "lng",
+        "isAvailable",
+        "lastDonationMs",
+        "lastDonationDate",
+        "totalDonations",
+        "hidePhone",
+        "publicContactPhone",
+        "eligibilityDeclared",
+        "fcmTopic",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated private PII (phone number and email) readable only by the owner or an admin.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 11,
+          "maxLength": 11,
+          "pattern": "^01[3-9][0-9]{8}$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "phone", "email", "updatedAt"]
+    },
+    "BloodRequest": {
+      "title": "BloodRequest",
+      "description": "Emergency blood request with hospital coordinates, patient blood group, bags needed, and lifecycle status.",
+      "type": "object",
+      "properties": {
+        "requesterUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "requesterName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "patientName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "bloodGroup": {
+          "type": "string",
+          "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+        },
+        "bags": {
+          "type": "number"
+        },
+        "hospital": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "district": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "area": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "hasPin": {
+          "type": "boolean"
+        },
+        "neededAtMs": {
+          "type": "number"
+        },
+        "neededAtIso": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "contactPhone": {
+          "type": "string",
+          "minLength": 11,
+          "maxLength": 11,
+          "pattern": "^01[3-9][0-9]{8}$"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "isUrgent": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "fulfilled", "cancelled", "expired"]
+        },
+        "responderCount": {
+          "type": "number"
+        },
+        "expiresAtMs": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "requesterUid",
+        "requesterName",
+        "patientName",
+        "bloodGroup",
+        "bags",
+        "hospital",
+        "district",
+        "area",
+        "lat",
+        "lng",
+        "hasPin",
+        "neededAtMs",
+        "neededAtIso",
+        "contactPhone",
+        "note",
+        "isUrgent",
+        "status",
+        "responderCount",
+        "expiresAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DonorResponse": {
+      "title": "DonorResponse",
+      "description": "A donor's 'I am coming' response to a specific blood request, with optional phone sharing and live location.",
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "donorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "donorName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "donorBloodGroup": {
+          "type": "string",
+          "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+        },
+        "sharedPhone": {
+          "type": "string",
+          "maxLength": 15
+        },
+        "status": {
+          "type": "string",
+          "enum": ["coming", "donated"]
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "requestId",
+        "donorUid",
+        "donorName",
+        "donorBloodGroup",
+        "sharedPhone",
+        "status",
+        "lat",
+        "lng",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AbuseReport": {
+      "title": "AbuseReport",
+      "description": "Moderation report filed by a member against an abusive request or user.",
+      "type": "object",
+      "properties": {
+        "reporterUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetType": {
+          "type": "string",
+          "enum": ["request", "user"]
+        },
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 300
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "resolved"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "reporterUid",
+        "targetType",
+        "targetId",
+        "targetName",
+        "reason",
+        "status",
+        "createdAt"
+      ]
+    },
+    "BlockedUser": {
+      "title": "BlockedUser",
+      "description": "Moderation block record preventing a user from writing any data.",
+      "type": "object",
+      "properties": {
+        "blockedUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "blockedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["blockedUid", "reason", "blockedByUid", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Admin privilege record.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "DonationCamp": {
+      "title": "DonationCamp",
+      "description": "Community blood donation camp posted by admins (FR-HIS-03).",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "organizer": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "district": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "location": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "dateIso": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 40
+        },
+        "contactPhone": {
+          "type": "string",
+          "minLength": 11,
+          "maxLength": 11,
+          "pattern": "^01[3-9][0-9]{8}$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "title",
+        "organizer",
+        "district",
+        "location",
+        "dateIso",
+        "contactPhone",
+        "createdByUid",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/DonorProfile" },
+      "description": "Public donor directory profiles with availability, blood group, district, area, and coordinates."
+    },
+    "/users_private/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated private user PII (phone and email) accessible only to the owner or admin."
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/BloodRequest" },
+      "description": "Blood requests with hospital coordinates, blood group, bags needed, and status."
+    },
+    "/requests/{requestId}/responses/{donorUid}": {
+      "schema": { "$ref": "#/entities/DonorResponse" },
+      "description": "Donor responses to a specific blood request."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/AbuseReport" },
+      "description": "Moderation abuse reports readable only by admins."
+    },
+    "/blocked/{blockedUid}": {
+      "schema": { "$ref": "#/entities/BlockedUser" },
+      "description": "Blocked users list managed by admins."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin UIDs."
+    },
+    "/camps/{campId}": {
+      "schema": { "$ref": "#/entities/DonationCamp" },
+      "description": "Community blood donation camps."
+    }
+  }
+}

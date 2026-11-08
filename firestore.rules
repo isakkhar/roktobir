@@ -1,0 +1,432 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Pillar 4.1: Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'sakkhar07@gmail.com'
+      );
+    }
+
+    function isNotBlocked() {
+      return !exists(/databases/$(database)/documents/blocked/$(request.auth.uid));
+    }
+
+    function isValidBloodGroup(bg) {
+      return bg is string && bg.size() >= 2 && bg.size() <= 3 && bg in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    }
+
+    function isValidBdPhone(phone) {
+      return phone is string && phone.size() == 11 && phone.matches('^01[3-9][0-9]{8}$');
+    }
+
+    // Validation Blueprint: DonorProfile (/users/{userId})
+    function isValidDonorProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid', 'name', 'bloodGroup', 'district', 'area', 'lat', 'lng',
+        'isAvailable', 'lastDonationMs', 'lastDonationDate', 'totalDonations',
+        'hidePhone', 'publicContactPhone', 'eligibilityDeclared', 'fcmTopic',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'name', 'bloodGroup', 'district', 'area', 'lat', 'lng',
+        'isAvailable', 'lastDonationMs', 'lastDonationDate', 'totalDonations',
+        'hidePhone', 'publicContactPhone', 'eligibilityDeclared', 'fcmTopic',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid == userId && data.uid == request.auth.uid &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+      isValidBloodGroup(data.bloodGroup) &&
+      data.district is string && data.district.size() >= 2 && data.district.size() <= 60 &&
+      data.area is string && data.area.size() >= 2 && data.area.size() <= 80 &&
+      data.lat is number && data.lat >= -90 && data.lat <= 90 &&
+      data.lng is number && data.lng >= -180 && data.lng <= 180 &&
+      data.isAvailable is bool &&
+      data.lastDonationMs is number && data.lastDonationMs >= 0 &&
+      data.lastDonationDate is string && data.lastDonationDate.size() <= 30 &&
+      data.totalDonations is int && data.totalDonations >= 0 && data.totalDonations <= 500 &&
+      data.hidePhone is bool &&
+      data.publicContactPhone is string && data.publicContactPhone.size() <= 15 &&
+      (
+        (data.hidePhone == true && data.publicContactPhone == '') ||
+        (data.hidePhone == false && isValidBdPhone(data.publicContactPhone))
+      ) &&
+      data.eligibilityDeclared is bool && data.eligibilityDeclared == true &&
+      data.fcmTopic is string && data.fcmTopic.size() >= 5 && data.fcmTopic.size() <= 30 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: UserPrivateInfo (/users_private/{userId})
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'phone', 'email', 'updatedAt']) &&
+      data.keys().hasOnly(['uid', 'phone', 'email', 'updatedAt']) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid == userId && data.uid == request.auth.uid &&
+      isValidBdPhone(data.phone) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: BloodRequest (/requests/{requestId})
+    // Note: notifiedAt is strictly forbidden from client writes (SRS Section 7.3)
+    function isValidBloodRequest(data) {
+      return data.keys().hasAll([
+        'requesterUid', 'requesterName', 'patientName', 'bloodGroup', 'bags',
+        'hospital', 'district', 'area', 'lat', 'lng', 'hasPin', 'neededAtMs',
+        'neededAtIso', 'contactPhone', 'note', 'isUrgent', 'status',
+        'responderCount', 'expiresAtMs', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'requesterUid', 'requesterName', 'patientName', 'bloodGroup', 'bags',
+        'hospital', 'district', 'area', 'lat', 'lng', 'hasPin', 'neededAtMs',
+        'neededAtIso', 'contactPhone', 'note', 'isUrgent', 'status',
+        'responderCount', 'expiresAtMs', 'createdAt', 'updatedAt'
+      ]) &&
+      data.requesterUid is string && data.requesterUid.size() >= 1 && data.requesterUid.size() <= 128 &&
+      data.requesterName is string && data.requesterName.size() >= 2 && data.requesterName.size() <= 60 &&
+      data.patientName is string && data.patientName.size() >= 2 && data.patientName.size() <= 60 &&
+      isValidBloodGroup(data.bloodGroup) &&
+      data.bags is int && data.bags >= 1 && data.bags <= 10 &&
+      data.hospital is string && data.hospital.size() >= 2 && data.hospital.size() <= 120 &&
+      data.district is string && data.district.size() >= 2 && data.district.size() <= 60 &&
+      data.area is string && data.area.size() >= 2 && data.area.size() <= 80 &&
+      data.lat is number && data.lat >= -90 && data.lat <= 90 &&
+      data.lng is number && data.lng >= -180 && data.lng <= 180 &&
+      data.hasPin is bool &&
+      data.neededAtMs is number && data.neededAtMs > 0 &&
+      data.neededAtIso is string && data.neededAtIso.size() >= 5 && data.neededAtIso.size() <= 40 &&
+      isValidBdPhone(data.contactPhone) &&
+      data.note is string && data.note.size() <= 300 &&
+      data.isUrgent is bool &&
+      data.status is string && data.status.size() >= 4 && data.status.size() <= 12 &&
+      data.status in ['open', 'fulfilled', 'cancelled', 'expired'] &&
+      data.responderCount is int && data.responderCount >= 0 && data.responderCount <= 500 &&
+      data.expiresAtMs is number && data.expiresAtMs >= data.neededAtMs &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: DonorResponse (/requests/{requestId}/responses/{donorUid})
+    function isValidDonorResponse(data, requestId, donorUid) {
+      return data.keys().hasAll([
+        'requestId', 'donorUid', 'donorName', 'donorBloodGroup', 'sharedPhone',
+        'status', 'lat', 'lng', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'requestId', 'donorUid', 'donorName', 'donorBloodGroup', 'sharedPhone',
+        'status', 'lat', 'lng', 'createdAt', 'updatedAt'
+      ]) &&
+      data.requestId is string && data.requestId.size() >= 1 && data.requestId.size() <= 128 &&
+      data.requestId == requestId &&
+      data.donorUid is string && data.donorUid.size() >= 1 && data.donorUid.size() <= 128 &&
+      data.donorUid == donorUid && data.donorUid == request.auth.uid &&
+      data.donorName is string && data.donorName.size() >= 2 && data.donorName.size() <= 60 &&
+      isValidBloodGroup(data.donorBloodGroup) &&
+      data.sharedPhone is string && data.sharedPhone.size() <= 15 &&
+      (data.sharedPhone == '' || isValidBdPhone(data.sharedPhone)) &&
+      data.status is string && data.status.size() >= 6 && data.status.size() <= 10 &&
+      data.status in ['coming', 'donated'] &&
+      data.lat is number && data.lat >= -90 && data.lat <= 90 &&
+      data.lng is number && data.lng >= -180 && data.lng <= 180 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: AbuseReport (/reports/{reportId})
+    function isValidAbuseReport(data) {
+      return data.keys().hasAll([
+        'reporterUid', 'targetType', 'targetId', 'targetName', 'reason', 'status', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'reporterUid', 'targetType', 'targetId', 'targetName', 'reason', 'status', 'createdAt'
+      ]) &&
+      data.reporterUid is string && data.reporterUid.size() >= 1 && data.reporterUid.size() <= 128 &&
+      data.reporterUid == request.auth.uid &&
+      data.targetType is string && data.targetType.size() >= 4 && data.targetType.size() <= 10 &&
+      data.targetType in ['request', 'user'] &&
+      isValidId(data.targetId) &&
+      data.targetName is string && data.targetName.size() >= 1 && data.targetName.size() <= 100 &&
+      data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 300 &&
+      data.status is string && data.status.size() >= 7 && data.status.size() <= 10 &&
+      data.status in ['pending', 'resolved'] &&
+      data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: BlockedUser (/blocked/{blockedUid})
+    function isValidBlockedUser(data, blockedUid) {
+      return data.keys().hasAll(['blockedUid', 'reason', 'blockedByUid', 'createdAt']) &&
+      data.keys().hasOnly(['blockedUid', 'reason', 'blockedByUid', 'createdAt']) &&
+      data.blockedUid is string && data.blockedUid.size() >= 1 && data.blockedUid.size() <= 128 &&
+      data.blockedUid == blockedUid &&
+      data.reason is string && data.reason.size() >= 2 && data.reason.size() <= 200 &&
+      data.blockedByUid is string && data.blockedByUid.size() >= 1 && data.blockedByUid.size() <= 128 &&
+      data.blockedByUid == request.auth.uid &&
+      data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: AdminUser (/admins/{adminUid})
+    function isValidAdminUser(data, adminUid) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid == adminUid &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+      data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: DonationCamp (/camps/{campId})
+    function isValidDonationCamp(data) {
+      return data.keys().hasAll([
+        'title', 'organizer', 'district', 'location', 'dateIso', 'contactPhone', 'createdByUid', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'organizer', 'district', 'location', 'dateIso', 'contactPhone', 'createdByUid', 'createdAt'
+      ]) &&
+      data.title is string && data.title.size() >= 3 && data.title.size() <= 100 &&
+      data.organizer is string && data.organizer.size() >= 2 && data.organizer.size() <= 100 &&
+      data.district is string && data.district.size() >= 2 && data.district.size() <= 60 &&
+      data.location is string && data.location.size() >= 2 && data.location.size() <= 120 &&
+      data.dateIso is string && data.dateIso.size() >= 4 && data.dateIso.size() <= 40 &&
+      isValidBdPhone(data.contactPhone) &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdByUid == request.auth.uid &&
+      data.createdAt is timestamp;
+    }
+
+    // 1. Public Donor Directory (/users/{userId})
+    match /users/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (
+        existing().eligibilityDeclared == true ||
+        existing().uid == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        existing().eligibilityDeclared == true ||
+        existing().uid == request.auth.uid
+      );
+      allow create: if isVerifiedUser() && isValidId(userId) &&
+        isValidDonorProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked();
+      allow update: if isVerifiedUser() && isValidId(userId) &&
+        isValidDonorProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked() && (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'bloodGroup', 'district', 'area', 'lat', 'lng',
+              'isAvailable', 'lastDonationMs', 'lastDonationDate', 'totalDonations',
+              'hidePhone', 'publicContactPhone', 'fcmTopic', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(userId) && (
+        request.auth.uid == userId || isAdmin()
+      );
+    }
+
+    // 2. Private User PII Isolation (/users_private/{userId})
+    match /users_private/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (
+        request.auth.uid == userId || isAdmin()
+      );
+      allow list: if isAdmin() && existing().uid == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(userId) &&
+        isValidUserPrivate(incoming(), userId) &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked();
+      allow update: if isVerifiedUser() && isValidId(userId) &&
+        isValidUserPrivate(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked() && (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'email', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(userId) && (
+        request.auth.uid == userId || isAdmin()
+      );
+    }
+
+    // 3. Blood Requests (/requests/{requestId})
+    match /requests/{requestId} {
+      allow get: if isVerifiedUser() && isValidId(requestId) && existing().bags >= 1;
+      allow list: if isVerifiedUser() && existing().bags >= 1 &&
+        existing().status in ['open', 'fulfilled', 'cancelled', 'expired'];
+      allow create: if isVerifiedUser() && isValidId(requestId) &&
+        isValidBloodRequest(incoming()) &&
+        incoming().requesterUid == request.auth.uid &&
+        incoming().status == 'open' &&
+        incoming().responderCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if isVerifiedUser() && isValidId(requestId) &&
+        isValidBloodRequest(incoming()) &&
+        incoming().requesterUid == existing().requesterUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isNotBlocked() && (
+          isAdmin() ||
+          // Action 1: Requester updates status or bags while request is open (Terminal State Lock)
+          (
+            existing().requesterUid == request.auth.uid &&
+            existing().status == 'open' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'bags', 'updatedAt'])
+          ) ||
+          // Action 2: Responder increments or decrements responderCount on an open request
+          (
+            existing().status == 'open' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['responderCount', 'updatedAt']) &&
+            (
+              incoming().responderCount == existing().responderCount + 1 ||
+              incoming().responderCount == existing().responderCount - 1
+            )
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(requestId) && (
+        existing().requesterUid == request.auth.uid || isAdmin()
+      );
+
+      // 4. Donor Responses Subcollection (/requests/{requestId}/responses/{donorUid})
+      match /responses/{donorUid} {
+        allow get: if isVerifiedUser() && isValidId(requestId) && isValidId(donorUid) &&
+          existing().requestId == requestId;
+        allow list: if isVerifiedUser() &&
+          existing().requestId == requestId &&
+          existing().status in ['coming', 'donated'];
+        allow create: if isVerifiedUser() && isValidId(requestId) && isValidId(donorUid) &&
+          isValidDonorResponse(incoming(), requestId, donorUid) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isNotBlocked() &&
+          exists(/databases/$(database)/documents/requests/$(requestId)) &&
+          get(/databases/$(database)/documents/requests/$(requestId)).data.status == 'open';
+        allow update: if isVerifiedUser() && isValidId(requestId) && isValidId(donorUid) &&
+          isValidDonorResponse(incoming(), requestId, donorUid) &&
+          incoming().requestId == existing().requestId &&
+          incoming().donorUid == existing().donorUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          isNotBlocked() &&
+          exists(/databases/$(database)/documents/requests/$(requestId)) && (
+            isAdmin() ||
+            (
+              request.auth.uid == donorUid &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'sharedPhone', 'lat', 'lng', 'updatedAt'])
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(requestId) && isValidId(donorUid) && (
+          request.auth.uid == donorUid || isAdmin()
+        );
+      }
+    }
+
+    // 5. Moderation Abuse Reports (/reports/{reportId})
+    match /reports/{reportId} {
+      allow get: if isAdmin() && isValidId(reportId) && existing().status in ['pending', 'resolved'];
+      allow list: if isAdmin() && existing().status in ['pending', 'resolved'];
+      allow create: if isVerifiedUser() && isValidId(reportId) &&
+        isValidAbuseReport(incoming()) &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        isNotBlocked();
+      allow update: if isAdmin() && isValidId(reportId) &&
+        isValidAbuseReport(incoming()) &&
+        incoming().reporterUid == existing().reporterUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin() && isValidId(reportId);
+    }
+
+    // 6. Blocked Users (/blocked/{blockedUid})
+    match /blocked/{blockedUid} {
+      allow get: if isVerifiedUser() && isValidId(blockedUid) && (
+        request.auth.uid == blockedUid || isAdmin()
+      );
+      allow list: if isAdmin() && existing().blockedByUid == request.auth.uid;
+      allow create: if isAdmin() && isValidId(blockedUid) &&
+        isValidBlockedUser(incoming(), blockedUid) &&
+        incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(blockedUid) &&
+        isValidBlockedUser(incoming(), blockedUid) &&
+        incoming().blockedUid == existing().blockedUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['reason']);
+      allow delete: if isAdmin() && isValidId(blockedUid);
+    }
+
+    // 7. Admin Users (/admins/{adminUid})
+    match /admins/{adminUid} {
+      allow get: if isVerifiedUser() && isValidId(adminUid) && (
+        request.auth.uid == adminUid || isAdmin()
+      );
+      allow list: if isAdmin() && existing().uid == request.auth.uid;
+      allow create: if isAdmin() && isValidId(adminUid) &&
+        isValidAdminUser(incoming(), adminUid) &&
+        incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(adminUid) &&
+        isValidAdminUser(incoming(), adminUid) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email']);
+      allow delete: if isAdmin() && isValidId(adminUid);
+    }
+
+    // 8. Community Blood Donation Camps (/camps/{campId})
+    match /camps/{campId} {
+      allow get: if isVerifiedUser() && isValidId(campId) && existing().title.size() >= 3;
+      allow list: if isVerifiedUser() && existing().title.size() >= 3;
+      allow create: if isAdmin() && isValidId(campId) &&
+        isValidDonationCamp(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(campId) &&
+        isValidDonationCamp(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'organizer', 'district', 'location', 'dateIso', 'contactPhone'
+        ]);
+      allow delete: if isAdmin() && isValidId(campId);
+    }
+  }
+}
